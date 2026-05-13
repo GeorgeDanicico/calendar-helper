@@ -1,0 +1,53 @@
+package com.sharky.dg.calendar.google;
+
+import java.io.IOException;
+import java.security.GeneralSecurityException;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import com.google.api.client.auth.oauth2.BearerToken;
+import com.google.api.client.auth.oauth2.Credential;
+import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.http.javanet.NetHttpTransport;
+import com.google.api.client.json.gson.GsonFactory;
+import com.google.api.services.calendar.Calendar;
+
+@Component
+public class GoogleCalendarClientFactory {
+
+	private final GoogleAccessTokenProvider googleAccessTokenProvider;
+	private final NetHttpTransport httpTransport;
+	private final String applicationName;
+
+	public GoogleCalendarClientFactory(
+		GoogleAccessTokenProvider googleAccessTokenProvider,
+		@Value("${spring.application.name:calendar-helper}") String applicationName
+	) {
+		this.googleAccessTokenProvider = googleAccessTokenProvider;
+		this.applicationName = applicationName;
+		this.httpTransport = trustedTransport();
+	}
+
+	public Calendar createClient(GoogleConnection connection) {
+		var credential = new Credential(BearerToken.authorizationHeaderAccessMethod())
+			.setAccessToken(googleAccessTokenProvider.getAccessToken(connection));
+
+		return new Calendar.Builder(
+			httpTransport,
+			GsonFactory.getDefaultInstance(),
+			credential
+		)
+			.setApplicationName(applicationName)
+			.build();
+	}
+
+	private NetHttpTransport trustedTransport() {
+		try {
+			return GoogleNetHttpTransport.newTrustedTransport();
+		}
+		catch (GeneralSecurityException | IOException exception) {
+			throw new IllegalStateException("Failed to initialize Google Calendar HTTP transport.", exception);
+		}
+	}
+}
