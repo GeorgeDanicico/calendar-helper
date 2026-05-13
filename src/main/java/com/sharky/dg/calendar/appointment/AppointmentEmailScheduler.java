@@ -7,7 +7,6 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -24,20 +23,17 @@ public class AppointmentEmailScheduler {
 	private final GoogleApiService googleApiService;
 	private final GoogleConnectionService googleConnectionService;
 	private final AppointmentCalendarEventFactory appointmentCalendarEventFactory;
-	private final String sampleEmailMessage;
 
 	public AppointmentEmailScheduler(
 		ChatClient chatClient,
 		GoogleApiService googleApiService,
 		GoogleConnectionService googleConnectionService,
-		AppointmentCalendarEventFactory appointmentCalendarEventFactory,
-		@Value("${app.openai.chat.sample-email-message:}") String sampleEmailMessage
+		AppointmentCalendarEventFactory appointmentCalendarEventFactory
 	) {
 		this.chatClient = chatClient;
 		this.googleApiService = googleApiService;
 		this.googleConnectionService = googleConnectionService;
 		this.appointmentCalendarEventFactory = appointmentCalendarEventFactory;
-		this.sampleEmailMessage = sampleEmailMessage;
 	}
 
 	@Scheduled(cron = "${app.openai.chat.scan-cron:*/10 * * * * *}")
@@ -45,44 +41,27 @@ public class AppointmentEmailScheduler {
 
 		var connections = googleConnectionService.listConnections();
 		if (connections.isEmpty()) {
-			log.info("Skipping Gmail probe because no Google connections are stored yet.");
-			// scanSampleEmailMessage();
+			log.info("No connections are registered within the application");
 			return;
 		}
 
 		for (var connection : connections) {
-			log.info("Processing connection for user");
+			log.info("Processing connection for user: {}", connection.email());
 			scanGoogleConnection(connection);
 		}
 	}
 
 	private void scanGoogleConnection(GoogleConnection connection) {
 		try {
-			var gmailProfile = googleApiService.fetchGmailProfile(connection);
-				log.info("Google Gmail profile probe succeeded for {}: {}", connection.email(), gmailProfile);
-
-			var latestMessages = latestMessagesMock();
-			log.info("Google Gmail latest messages mock for {}: {}", connection.email(), latestMessages);
+			var latestMessages = googleApiService.fetchLatestGmailMessages(connection);
+			log.info("Google Gmail latest 10 messages for {}", connection.email());
 			var messagesToProcess = messagesToProcess(connection, latestMessages);
 			createCalendarEventsForAppointments(connection, messagesToProcess);
-			// updateLatestSeenMessage(connection, latestMessages);
-
-			// var calendarList = googleApiService.fetchCalendarList(connection);
-			// log.info("Google Calendar probe succeeded for {}: {}", connection.email(), calendarList);
+			updateLatestSeenMessage(connection, latestMessages);
 		}
 		catch (Exception exception) {
 			log.info("Skipping Gmail probe for {} because stored Google credentials are not usable.", connection.email(), exception);
 		}
-	}
-
-	private Map<String, Object> latestMessagesMock() {
-		var message = Map.<String, Object>of(
-			"id", "sample-appointment-message",
-			"threadId", "sample-appointment-thread",
-			"subject", "Dentist appointment reminder",
-			"snippet", sampleEmailMessage
-		);
-		return Map.of("messages", List.of(message));
 	}
 
 	private void createCalendarEventsForAppointments(
@@ -183,16 +162,6 @@ public class AppointmentEmailScheduler {
 				""".formatted(emailMessage))
 			.call()
 			.entity(AppointmentExtraction.class);
-	}
-
-	private void scanSampleEmailMessage() {
-		if (sampleEmailMessage == null || sampleEmailMessage.isBlank()) {
-			log.debug("Skipping appointment extraction because no sample email message is configured.");
-			return;
-		}
-
-		var extraction = extractAppointment(sampleEmailMessage);
-		log.info("Appointment extraction result: {}", extraction);
 	}
 
 	private String appointmentExtractionInput(String subject, String snippet) {

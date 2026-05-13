@@ -1,0 +1,125 @@
+:root {
+	color-scheme: light;
+	--bg: #f5f7fb;
+	--panel: #ffffff;
+	--text: #1f2937;
+	--muted: #5f6b7a;
+	--border: #d8dee8;
+	--accent: #2563eb;
+	--accent-dark: #1d4ed8;
+	--success: #12805c;
+	--shadow: 0 18px 48px rgba(31, 41, 55, 0.12);
+}
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	margin: 0;
+	min-height: 100vh;
+	font-family: Arial, Helvetica, sans-serif;
+	background:
+		linear-gradient(135deg, rgba(37, 99, 235, 0.10), transparent 42%),
+		linear-gradient(315deg, rgba(18, 128, 92, 0.10), transparent 38%),
+		var(--bg);
+	color: var(--text);
+}
+
+.page-shell {
+	min-height: 100vh;
+	display: grid;
+	place-items: center;
+	padding: 32px 18px;
+}
+
+.auth-panel {
+	width: min(100%, 480px);
+	padding: 36px;
+	background: var(--panel);
+	border: 1px solid var(--border);
+	border-radius: 8px;
+	box-shadow: var(--shadow);
+}
+
+.eyebrow {
+	margin: 0 0 12px;
+	color: var(--accent);
+	font-size: 0.78rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.success-panel .eyebrow {
+	color: var(--success);
+}
+
+h1 {
+	margin: 0;
+	font-size: 2rem;
+	line-height: 1.12;
+}
+
+.lede {
+	margin: 18px 0 28px;
+	color: var(--muted);
+	font-size: 1rem;
+	line-height: 1.6;
+}
+
+.google-button,
+.secondary-link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	min-height: 46px;
+	border-radius: 6px;
+	font-weight: 700;
+	text-decoration: none;
+}
+
+.google-button {
+	gap: 12px;
+	width: 100%;
+	padding: 0 18px;
+	background: var(--accent);
+	color: #ffffff;
+	border: 1px solid var(--accent);
+}
+
+.google-button:hover {
+	background: var(--accent-dark);
+}
+
+.google-mark {
+	display: inline-grid;
+	place-items: center;
+	width: 24px;
+	height: 24px;
+	border-radius: 50%;
+	background: #ffffff;
+	color: var(--accent);
+	font-weight: 800;
+}
+
+.secondary-link {
+	padding: 0 16px;
+	color: var(--accent);
+	border: 1px solid var(--border);
+	background: #ffffff;
+}
+
+.secondary-link:hover {
+	border-color: var(--accent);
+}
+
+@media (max-width: 520px) {
+	.auth-panel {
+		padding: 28px 22px;
+	}
+
+	h1 {
+		font-size: 1.7rem;
+	}
+}

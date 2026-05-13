@@ -31,7 +31,15 @@ public class GoogleSecurityConfiguration {
 	) throws Exception {
 		http
 			.authorizeHttpRequests((requests) -> requests
-				.requestMatchers("/google/login", "/google/status", "/google/test/**").permitAll()
+				.requestMatchers(
+					"/",
+					"/index.html",
+					"/styles.css",
+					"/google-auth-success.html",
+					"/google/login",
+					"/google/status",
+					"/google/test/**"
+				).permitAll()
 				.anyRequest().authenticated()
 			)
 			.oauth2Login((login) -> login
@@ -97,7 +105,7 @@ public class GoogleSecurityConfiguration {
 					googleConnectionService.saveOAuthConnection(oauth2Authentication, authorizedClient);
 				}
 			}
-			response.sendRedirect("/google/status");
+			response.sendRedirect("/google-auth-success.html");
 		};
 	}
 }
