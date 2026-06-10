@@ -6,37 +6,39 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
 
 import com.sharky.dg.calendar.google.GoogleApiService;
 import com.sharky.dg.calendar.google.GoogleConnection;
 import com.sharky.dg.calendar.google.GoogleConnectionService;
 
-@Component
+import io.quarkus.scheduler.Scheduled;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
+@ApplicationScoped
 public class AppointmentEmailScheduler {
 
 	private static final Logger log = LoggerFactory.getLogger(AppointmentEmailScheduler.class);
 
-	private final ChatClient chatClient;
+	private final AppointmentExtractionClient appointmentExtractionClient;
 	private final GoogleApiService googleApiService;
 	private final GoogleConnectionService googleConnectionService;
 	private final AppointmentCalendarEventFactory appointmentCalendarEventFactory;
 
+	@Inject
 	public AppointmentEmailScheduler(
-		ChatClient chatClient,
+		AppointmentExtractionClient appointmentExtractionClient,
 		GoogleApiService googleApiService,
 		GoogleConnectionService googleConnectionService,
 		AppointmentCalendarEventFactory appointmentCalendarEventFactory
 	) {
-		this.chatClient = chatClient;
+		this.appointmentExtractionClient = appointmentExtractionClient;
 		this.googleApiService = googleApiService;
 		this.googleConnectionService = googleConnectionService;
 		this.appointmentCalendarEventFactory = appointmentCalendarEventFactory;
 	}
 
-	@Scheduled(cron = "${app.openai.chat.scan-cron:*/10 * * * * *}")
+	@Scheduled(cron = "{app.appointment.email-scan-cron}")
 	void scanEmailMessageForAppointment() {
 
 		var connections = googleConnectionService.listConnections();
@@ -153,15 +155,7 @@ public class AppointmentEmailScheduler {
 	}
 
 	private AppointmentExtraction extractAppointment(String emailMessage) {
-		return chatClient.prompt()
-			.user("""
-				Check whether this email message is an appointment and extract the structured fields.
-
-				Email message:
-				%s
-				""".formatted(emailMessage))
-			.call()
-			.entity(AppointmentExtraction.class);
+		return appointmentExtractionClient.extractAppointment(emailMessage);
 	}
 
 	private String appointmentExtractionInput(String subject, String snippet) {

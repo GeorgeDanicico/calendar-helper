@@ -1,6 +1,10 @@
 package com.sharky.dg.calendar.google;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -8,37 +12,44 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClient;
-import org.springframework.web.server.ResponseStatusException;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.api.client.util.DateTime;
 import com.google.api.services.calendar.model.CalendarListEntry;
 import com.google.api.services.calendar.model.Event;
 import com.google.api.services.calendar.model.EventDateTime;
 
-@Service
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.ws.rs.WebApplicationException;
+import jakarta.ws.rs.core.HttpHeaders;
+import jakarta.ws.rs.core.Response;
+
+@ApplicationScoped
 public class GoogleApiService {
 
 	private final GoogleConnectionService googleConnectionService;
 	private final GoogleAccessTokenProvider googleAccessTokenProvider;
 	private final GoogleCalendarClientFactory googleCalendarClientFactory;
-	private final RestClient restClient;
+	private final ObjectMapper objectMapper;
+	private final HttpClient httpClient;
 	private final String calendarId;
 
+	@Inject
 	public GoogleApiService(
 		GoogleConnectionService googleConnectionService,
 		GoogleAccessTokenProvider googleAccessTokenProvider,
 		GoogleCalendarClientFactory googleCalendarClientFactory,
-		@Value("${app.calendar.id:primary}") String calendarId
+		ObjectMapper objectMapper,
+		@ConfigProperty(name = "app.calendar.id", defaultValue = "primary") String calendarId
 	) {
 		this.googleConnectionService = googleConnectionService;
 		this.googleAccessTokenProvider = googleAccessTokenProvider;
 		this.googleCalendarClientFactory = googleCalendarClientFactory;
-		this.restClient = RestClient.builder().build();
+		this.objectMapper = objectMapper;
+		this.httpClient = HttpClient.newHttpClient();
 		this.calendarId = calendarId;
 	}
 
@@ -72,10 +83,10 @@ public class GoogleApiService {
 			);
 		}
 		catch (IOException exception) {
-			throw new ResponseStatusException(
-				HttpStatus.BAD_GATEWAY,
+			throw new WebApplicationException(
 				"Google Calendar list request failed.",
-				exception
+				exception,
+				Response.Status.BAD_GATEWAY
 			);
 		}
 	}
@@ -97,10 +108,10 @@ public class GoogleApiService {
 			return eventToMap(event);
 		}
 		catch (IOException exception) {
-			throw new ResponseStatusException(
-				HttpStatus.BAD_GATEWAY,
+			throw new WebApplicationException(
 				"Google Calendar event creation failed.",
-				exception
+				exception,
+				Response.Status.BAD_GATEWAY
 			);
 		}
 	}
@@ -143,22 +154,42 @@ public class GoogleApiService {
 		return Map.of("messages", resolvedMessages);
 	}
 
-	@SuppressWarnings("unchecked")
 	private Map<String, Object> fetchGoogleResource(
 		GoogleConnection connection,
 		String url
 	) {
 		var accessToken = googleAccessTokenProvider.getAccessToken(connection);
-		var response = restClient.get()
-			.uri(url)
-			.header(
-				HttpHeaders.AUTHORIZATION,
-				"Bearer " + accessToken
-			)
-			.retrieve()
-			.body(Map.class);
+		var request = HttpRequest.newBuilder(URI.create(url))
+			.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+			.GET()
+			.build();
 
-		return response == null ? Map.of() : response;
+		try {
+			var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+			if (response.statusCode() < 200 || response.statusCode() >= 300) {
+				throw new WebApplicationException(
+					"Google API request failed.",
+					Response.status(Response.Status.BAD_GATEWAY).entity(response.body()).build()
+				);
+			}
+			return objectMapper.readValue(response.body(), new TypeReference<>() {
+			});
+		}
+		catch (IOException exception) {
+			throw new WebApplicationException(
+				"Google API request failed.",
+				exception,
+				Response.Status.BAD_GATEWAY
+			);
+		}
+		catch (InterruptedException exception) {
+			Thread.currentThread().interrupt();
+			throw new WebApplicationException(
+				"Google API request was interrupted.",
+				exception,
+				Response.Status.BAD_GATEWAY
+			);
+		}
 	}
 
 	private Event calendarEvent(CalendarEventRequest eventRequest) {

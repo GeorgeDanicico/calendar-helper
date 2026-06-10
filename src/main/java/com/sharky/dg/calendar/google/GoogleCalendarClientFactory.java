@@ -3,8 +3,7 @@ package com.sharky.dg.calendar.google;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import com.google.api.client.auth.oauth2.BearerToken;
 import com.google.api.client.auth.oauth2.Credential;
@@ -13,16 +12,20 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.calendar.Calendar;
 
-@Component
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
+@ApplicationScoped
 public class GoogleCalendarClientFactory {
 
 	private final GoogleAccessTokenProvider googleAccessTokenProvider;
 	private final NetHttpTransport httpTransport;
 	private final String applicationName;
 
+	@Inject
 	public GoogleCalendarClientFactory(
 		GoogleAccessTokenProvider googleAccessTokenProvider,
-		@Value("${spring.application.name:calendar-helper}") String applicationName
+		@ConfigProperty(name = "quarkus.application.name", defaultValue = "calendar-helper") String applicationName
 	) {
 		this.googleAccessTokenProvider = googleAccessTokenProvider;
 		this.applicationName = applicationName;

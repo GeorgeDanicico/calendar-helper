@@ -4,20 +4,23 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
 
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
 import com.sharky.dg.calendar.google.CalendarEventRequest;
 
-@Component
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+
+@ApplicationScoped
 public class AppointmentCalendarEventFactory {
 
 	private final String timeZone;
 	private final Duration defaultDuration;
 
+	@Inject
 	public AppointmentCalendarEventFactory(
-		@Value("${app.calendar.time-zone}") String timeZone,
-		@Value("${app.calendar.default-duration-minutes:60}") long defaultDurationMinutes
+		@ConfigProperty(name = "app.calendar.time-zone") String timeZone,
+		@ConfigProperty(name = "app.calendar.default-duration-minutes", defaultValue = "60") long defaultDurationMinutes
 	) {
 		this.timeZone = timeZone;
 		this.defaultDuration = Duration.ofMinutes(defaultDurationMinutes);
