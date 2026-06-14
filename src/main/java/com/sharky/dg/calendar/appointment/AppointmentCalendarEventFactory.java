@@ -6,6 +6,7 @@ import java.util.Optional;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import com.sharky.dg.calendar.appointment.model.AppointmentExtraction;
 import com.sharky.dg.calendar.google.CalendarEventRequest;
 
 import jakarta.enterprise.context.ApplicationScoped;
@@ -37,9 +38,9 @@ public class AppointmentCalendarEventFactory {
 
 		var start = extraction.time();
 		return Optional.of(new CalendarEventRequest(
-			summary(extraction),
+			extraction.appointmentTitle(),
 			blankToNull(extraction.location()),
-			description(subject, snippet),
+			extraction.summary(),
 			start,
 			start.plus(defaultDuration),
 			timeZone
@@ -56,33 +57,6 @@ public class AppointmentCalendarEventFactory {
 			start.plus(defaultDuration),
 			timeZone
 		);
-	}
-
-	private String summary(AppointmentExtraction extraction) {
-		var appointmentType = blankToNull(extraction.appointmentType());
-		return appointmentType == null ? "Appointment" : appointmentType;
-	}
-
-	private String description(String subject, String snippet) {
-		var normalizedSubject = blankToNull(subject);
-		var normalizedSnippet = blankToNull(snippet);
-		if (normalizedSubject == null && normalizedSnippet == null) {
-			return "Created from an appointment email by calendar-helper.";
-		}
-		if (normalizedSubject == null) {
-			return "Created from email snippet:\n" + normalizedSnippet;
-		}
-		if (normalizedSnippet == null) {
-			return "Created from email subject:\n" + normalizedSubject;
-		}
-		return """
-			Created from email.
-
-			Subject: %s
-
-			Snippet:
-			%s
-			""".formatted(normalizedSubject, normalizedSnippet);
 	}
 
 	private String blankToNull(String value) {

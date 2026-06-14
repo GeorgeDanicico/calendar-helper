@@ -1,12 +1,15 @@
 package com.sharky.dg.calendar.appointment;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.sharky.dg.calendar.appointment.model.AppointmentExtraction;
 import com.sharky.dg.calendar.google.GoogleApiService;
 import com.sharky.dg.calendar.google.GoogleConnection;
 import com.sharky.dg.calendar.google.GoogleConnectionService;
@@ -24,18 +27,21 @@ public class AppointmentEmailScheduler {
 	private final GoogleApiService googleApiService;
 	private final GoogleConnectionService googleConnectionService;
 	private final AppointmentCalendarEventFactory appointmentCalendarEventFactory;
+	private final boolean mockGmailMessagesEnabled;
 
 	@Inject
 	public AppointmentEmailScheduler(
 		AppointmentExtractionClient appointmentExtractionClient,
 		GoogleApiService googleApiService,
 		GoogleConnectionService googleConnectionService,
-		AppointmentCalendarEventFactory appointmentCalendarEventFactory
+		AppointmentCalendarEventFactory appointmentCalendarEventFactory,
+		@ConfigProperty(name = "app.appointment.mock-gmail-messages.enabled", defaultValue = "false") boolean mockGmailMessagesEnabled
 	) {
 		this.appointmentExtractionClient = appointmentExtractionClient;
 		this.googleApiService = googleApiService;
 		this.googleConnectionService = googleConnectionService;
 		this.appointmentCalendarEventFactory = appointmentCalendarEventFactory;
+		this.mockGmailMessagesEnabled = mockGmailMessagesEnabled;
 	}
 
 	@Scheduled(cron = "{app.appointment.email-scan-cron}")
@@ -55,7 +61,7 @@ public class AppointmentEmailScheduler {
 
 	private void scanGoogleConnection(GoogleConnection connection) {
 		try {
-			var latestMessages = googleApiService.fetchLatestGmailMessages(connection);
+			var latestMessages = fetchLatestGmailMessages(connection);
 			log.info("Google Gmail latest 10 messages for {}", connection.email());
 			var messagesToProcess = messagesToProcess(connection, latestMessages);
 			createCalendarEventsForAppointments(connection, messagesToProcess);
@@ -64,6 +70,48 @@ public class AppointmentEmailScheduler {
 		catch (Exception exception) {
 			log.info("Skipping Gmail probe for {} because stored Google credentials are not usable.", connection.email(), exception);
 		}
+	}
+
+	private Map<String, Object> fetchLatestGmailMessages(GoogleConnection connection) {
+		// if (!mockGmailMessagesEnabled) {
+		// 	return googleApiService.fetchLatestGmailMessages(connection);
+		// }
+
+		log.info("Using mock Gmail appointment messages for {}", connection.email());
+		return fetchMockAppointmentGmailMessages();
+	}
+
+	private Map<String, Object> fetchMockAppointmentGmailMessages() {
+		var mockRunId = Instant.now().toEpochMilli();
+		return Map.of(
+			"messages",
+			List.of(
+				Map.of(
+					"id", "mock-appointment-dental-%s".formatted(mockRunId),
+					"threadId", "mock-thread-dental",
+					"from", "Bright Smile Dental <appointments@example.com>",
+					"subject", "Dental cleaning appointment confirmed",
+					"date", "Thu, 11 Jun 2026 09:15:00 +0300",
+					"snippet", "Your dental cleaning appointment is confirmed for 2026-06-16T14:30:00 at Bright Smile Dental, 123 Main Street."
+				),
+				Map.of(
+					"id", "mock-appointment-physio-%s".formatted(mockRunId),
+					"threadId", "mock-thread-physio",
+					"from", "City Physio Clinic <schedule@example.com>",
+					"subject", "Physical therapy visit reminder",
+					"date", "Thu, 11 Jun 2026 10:05:00 +0300",
+					"snippet", "Reminder: your physical therapy appointment is scheduled for 2026-06-15T09:00:00 at City Physio Clinic, Room 4."
+				),
+				Map.of(
+					"id", "mock-fake-physio-%s".formatted(mockRunId),
+					"threadId", "mock-thread-physio",
+					"from", "City Physio Clinic <schedule@example.com>",
+					"subject", "Feedback survey",
+					"date", "Thu, 11 Jun 2026 10:05:00 +0300",
+					"snippet", "Hello! we would like you to complete our survey after your visit."
+				)
+			)
+		);
 	}
 
 	private void createCalendarEventsForAppointments(

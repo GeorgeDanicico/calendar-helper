@@ -2,36 +2,17 @@ package com.sharky.dg.calendar.appointment;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-
-import java.time.LocalDateTime;
-
 import org.junit.jupiter.api.Test;
+
+import com.sharky.dg.calendar.appointment.model.AppointmentExtraction;
 
 class AppointmentExtractionClientTests {
 
 	@Test
-	void extractAppointmentDelegatesToAiServiceWhenApiKeyIsConfigured() {
-		var expectedExtraction = new AppointmentExtraction(
-			true,
-			LocalDateTime.parse("2026-05-13T14:30:00"),
-			"Dentist appointment",
-			"Bright Dental Clinic"
-		);
-		var aiService = new StubAppointmentExtractionAiService(expectedExtraction);
-		var client = new AppointmentExtractionClient(aiService, "sk-test");
-
-		var extraction = client.extractAppointment("Dentist appointment on 2026-05-13 at 14:30.");
-
-		assertSame(expectedExtraction, extraction);
-		assertEquals("Dentist appointment on 2026-05-13 at 14:30.", aiService.lastEmailMessage);
-	}
-
-	@Test
 	void extractAppointmentRequiresOpenAiApiKey() {
 		var aiService = new StubAppointmentExtractionAiService(null);
-		var client = new AppointmentExtractionClient(aiService, "");
+		var client = new AppointmentExtractionClient(aiService);
 
 		var exception = assertThrows(
 			IllegalStateException.class,

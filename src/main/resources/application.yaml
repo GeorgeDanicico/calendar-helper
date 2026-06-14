@@ -20,6 +20,8 @@ quarkus:
 app:
   appointment:
     email-scan-cron: "*/50 * * * * ?"
+    mock-gmail-messages:
+      enabled: false
   calendar:
     id: primary
     time-zone: Europe/Bucharest
