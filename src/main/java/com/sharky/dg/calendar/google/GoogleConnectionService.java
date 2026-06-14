@@ -7,8 +7,6 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.sharky.dg.calendar.appointment.AppointmentEmailScheduler;
-
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
@@ -17,7 +15,7 @@ import jakarta.ws.rs.core.Response;
 @ApplicationScoped
 public class GoogleConnectionService {
 
-	private static final Logger log = LoggerFactory.getLogger(AppointmentEmailScheduler.class);
+	private static final Logger log = LoggerFactory.getLogger(GoogleConnectionService.class);
 	private final GoogleConnectionRepository googleConnectionRepository;
 
 	@Inject
