@@ -20,7 +20,7 @@ class AppointmentEmailServiceTests {
 			"Dental Clinic"
 		);
 		var aiService = new StubAppointmentExtractionAiService(extraction);
-		var service = new AppointmentEmailService(aiService, null, null, null, false);
+		var service = new AppointmentEmailService(aiService, null, null, null, null, false);
 
 		var result = service.extractAppointment("Dentist appointment on 2026-05-13 at 14:30.");
 

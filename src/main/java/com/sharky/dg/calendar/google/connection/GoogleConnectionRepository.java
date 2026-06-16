@@ -1,4 +1,4 @@
-package com.sharky.dg.calendar.google;
+package com.sharky.dg.calendar.google.connection;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -35,46 +35,26 @@ public class GoogleConnectionRepository {
 
 		if (existingConnection.isPresent()) {
 			updateConnection(existingConnection.get().id(), input);
-			return findById(existingConnection.get().id()).orElseThrow();
+			return findGoogleConnectionById(existingConnection.get().id()).orElseThrow();
 		}
 
 		var existingUserConnection = findByUserIdAndConnectionType(userId, GOOGLE_CONNECTION_TYPE);
 		if (existingUserConnection.isPresent()) {
 			updateConnection(existingUserConnection.get().id(), input);
-			return findById(existingUserConnection.get().id()).orElseThrow();
+			return findGoogleConnectionById(existingUserConnection.get().id()).orElseThrow();
 		}
 
 		var connectionId = UUID.randomUUID();
 		insertConnection(connectionId, userId, input);
-		return findById(connectionId).orElseThrow();
-	}
-
-	public Optional<GoogleConnection> findLatestGoogleConnection() {
-		return queryOptional(
-			connectionSelectSql() + """
-				order by c.updated_at desc
-				limit 1
-				""",
-			this::mapConnection
-		);
+		return findGoogleConnectionById(connectionId).orElseThrow();
 	}
 
 	public Optional<GoogleConnection> findGoogleConnectionById(UUID id) {
-		return findById(id);
-	}
-
-	public Optional<GoogleConnection> findGoogleConnectionByEmail(String email) {
 		return queryOptional(
 			connectionSelectSql() + """
-				where lower(u.email) = lower(?)
-				and c.connection_type = ?
-				order by c.updated_at desc
-				limit 1
+				where c.id = ?
 				""",
-			(statement) -> {
-				statement.setString(1, email);
-				statement.setString(2, GOOGLE_CONNECTION_TYPE);
-			},
+			(statement) -> statement.setObject(1, id),
 			this::mapConnection
 		);
 	}
@@ -222,16 +202,6 @@ public class GoogleConnectionRepository {
 		);
 	}
 
-	private Optional<GoogleConnection> findById(UUID id) {
-		return queryOptional(
-			connectionSelectSql() + """
-				where c.id = ?
-				""",
-			(statement) -> statement.setObject(1, id),
-			this::mapConnection
-		);
-	}
-
 	private void insertConnection(UUID connectionId, UUID userId, GoogleOAuthConnectionInput input) {
 		// TODO: Encrypt stored OAuth tokens before using this outside local development.
 		update(
@@ -301,11 +271,6 @@ public class GoogleConnectionRepository {
 			from oauth_connections c
 			join app_user u on u.id = c.user_id
 			""";
-	}
-
-	private <T> Optional<T> queryOptional(String sql, RowMapper<T> rowMapper) {
-		return queryOptional(sql, (statement) -> {
-		}, rowMapper);
 	}
 
 	private <T> Optional<T> queryOptional(

@@ -1,4 +1,4 @@
-package com.sharky.dg.calendar.google;
+package com.sharky.dg.calendar.google.connection;
 
 import java.time.Instant;
 import java.util.UUID;

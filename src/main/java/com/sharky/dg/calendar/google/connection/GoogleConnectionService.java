@@ -1,11 +1,12 @@
-package com.sharky.dg.calendar.google;
+package com.sharky.dg.calendar.google.connection;
 
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.sharky.dg.calendar.appointment.model.ConnectedAccount;
+import com.sharky.dg.calendar.appointment.port.ConnectedAccountProvider;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -13,9 +14,8 @@ import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.Response;
 
 @ApplicationScoped
-public class GoogleConnectionService {
+public class GoogleConnectionService implements ConnectedAccountProvider {
 
-	private static final Logger log = LoggerFactory.getLogger(GoogleConnectionService.class);
 	private final GoogleConnectionRepository googleConnectionRepository;
 
 	@Inject
@@ -50,16 +50,15 @@ public class GoogleConnectionService {
 		);
 	}
 
-	public Optional<GoogleConnection> findConnection(String email) {
-		if (email == null || email.isBlank()) {
-			log.error("Invalid email {}", email);
-			throw new IllegalArgumentException("Invalid email.");
+	public GoogleConnection requireConnection(ConnectedAccount account) {
+		if (account == null || account.id() == null) {
+			throw webException(Response.Status.UNAUTHORIZED, "No Google account is connected. Open /google/login first.");
 		}
-		return googleConnectionRepository.findGoogleConnectionByEmail(email);
+		return requireConnection(account.id());
 	}
 
-	public GoogleConnection requireConnection(String email) {
-		return findConnection(email)
+	public GoogleConnection requireConnection(UUID connectionId) {
+		return googleConnectionRepository.findGoogleConnectionById(connectionId)
 			.orElseThrow(() -> webException(
 				Response.Status.UNAUTHORIZED,
 				"No Google account is connected. Open /google/login first."
@@ -70,11 +69,22 @@ public class GoogleConnectionService {
 		return googleConnectionRepository.listGoogleConnections();
 	}
 
-	public Optional<String> findLatestGmailMessageId(GoogleConnection connection) {
+	@Override
+	public List<ConnectedAccount> listConnectedAccounts() {
+		return listConnections().stream()
+			.map((connection) -> new ConnectedAccount(connection.id(), connection.email()))
+			.toList();
+	}
+
+	@Override
+	public Optional<String> findLatestGmailMessageId(ConnectedAccount account) {
+		var connection = requireConnection(account);
 		return googleConnectionRepository.findLatestGmailMessageId(connection.userId());
 	}
 
-	public void updateLatestGmailMessageId(GoogleConnection connection, String messageId) {
+	@Override
+	public void updateLatestGmailMessageId(ConnectedAccount account, String messageId) {
+		var connection = requireConnection(account);
 		googleConnectionRepository.updateLatestGmailMessageId(connection.userId(), messageId);
 	}
 

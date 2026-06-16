@@ -1,4 +1,4 @@
-package com.sharky.dg.calendar.google;
+package com.sharky.dg.calendar.google.calendar;
 
 import java.io.IOException;
 import java.security.GeneralSecurityException;
@@ -11,6 +11,8 @@ import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
 import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.services.calendar.Calendar;
+import com.sharky.dg.calendar.google.auth.GoogleAccessTokenProvider;
+import com.sharky.dg.calendar.google.connection.GoogleConnection;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;

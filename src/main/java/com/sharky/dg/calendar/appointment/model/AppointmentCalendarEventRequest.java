@@ -1,8 +1,8 @@
-package com.sharky.dg.calendar.google;
+package com.sharky.dg.calendar.appointment.model;
 
 import java.time.LocalDateTime;
 
-public record CalendarEventRequest(
+public record AppointmentCalendarEventRequest(
 	String summary,
 	String location,
 	String description,

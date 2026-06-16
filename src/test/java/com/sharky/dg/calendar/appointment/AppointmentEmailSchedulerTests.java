@@ -20,7 +20,7 @@ class AppointmentEmailSchedulerTests {
 		private boolean called;
 
 		private StubAppointmentEmailService() {
-			super(null, null, null, null, false);
+			super(null, null, null, null, null, false);
 		}
 
 		@Override

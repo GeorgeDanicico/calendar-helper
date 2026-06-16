@@ -1,21 +1,13 @@
-package com.sharky.dg.calendar.google;
+package com.sharky.dg.calendar.google.auth;
 
-import java.io.IOException;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.stream.Collectors;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sharky.dg.calendar.google.connection.GoogleConnection;
+import com.sharky.dg.calendar.google.connection.GoogleConnectionRepository;
+import com.sharky.dg.calendar.google.http.GoogleHttpClient;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -29,20 +21,18 @@ public class GoogleAccessTokenProvider {
 
 	private final GoogleConnectionRepository googleConnectionRepository;
 	private final GoogleOAuthConfiguration googleOAuthConfiguration;
-	private final ObjectMapper objectMapper;
-	private final HttpClient httpClient;
+	private final GoogleHttpClient googleHttpClient;
 	private final Clock clock;
 
 	@Inject
 	public GoogleAccessTokenProvider(
 		GoogleConnectionRepository googleConnectionRepository,
 		GoogleOAuthConfiguration googleOAuthConfiguration,
-		ObjectMapper objectMapper
+		GoogleHttpClient googleHttpClient
 	) {
 		this.googleConnectionRepository = googleConnectionRepository;
 		this.googleOAuthConfiguration = googleOAuthConfiguration;
-		this.objectMapper = objectMapper;
-		this.httpClient = HttpClient.newHttpClient();
+		this.googleHttpClient = googleHttpClient;
 		this.clock = Clock.systemUTC();
 	}
 
@@ -88,61 +78,28 @@ public class GoogleAccessTokenProvider {
 		form.put("client_id", googleOAuthConfiguration.clientId());
 		form.put("client_secret", googleOAuthConfiguration.clientSecret());
 
-		var request = HttpRequest.newBuilder(URI.create(googleOAuthConfiguration.tokenUri()))
-			.header("Content-Type", "application/x-www-form-urlencoded")
-			.POST(HttpRequest.BodyPublishers.ofString(formBody(form)))
-			.build();
+		var responseBody = googleHttpClient.postForm(
+			googleOAuthConfiguration.tokenUri(),
+			form,
+			"Google token refresh failed."
+		);
 
-		try {
-			var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-			if (response.statusCode() < 200 || response.statusCode() >= 300) {
-				throw webException(Response.Status.BAD_GATEWAY, "Google token refresh failed.");
-			}
-
-			var responseBody = objectMapper.readValue(response.body(), new TypeReference<Map<String, Object>>() {
-			});
-			if (!(responseBody.get("access_token") instanceof String accessToken) || accessToken.isBlank()) {
-				throw webException(
-					Response.Status.BAD_GATEWAY,
-					"Google token endpoint did not return an access token."
-				);
-			}
-
-			var expiresInSeconds = 3600L;
-			if (responseBody.get("expires_in") instanceof Number expiresIn) {
-				expiresInSeconds = expiresIn.longValue();
-			}
-
-			return new RefreshedToken(
-				accessToken,
-				Instant.now(clock).plusSeconds(expiresInSeconds)
+		if (!(responseBody.get("access_token") instanceof String accessToken) || accessToken.isBlank()) {
+			throw webException(
+				Response.Status.BAD_GATEWAY,
+				"Google token endpoint did not return an access token."
 			);
 		}
-		catch (IOException exception) {
-			throw new WebApplicationException(
-				"Google token refresh failed.",
-				exception,
-				Response.Status.BAD_GATEWAY
-			);
-		}
-		catch (InterruptedException exception) {
-			Thread.currentThread().interrupt();
-			throw new WebApplicationException(
-				"Google token refresh was interrupted.",
-				exception,
-				Response.Status.BAD_GATEWAY
-			);
-		}
-	}
 
-	private String formBody(Map<String, String> form) {
-		return form.entrySet().stream()
-			.map((entry) -> encode(entry.getKey()) + "=" + encode(entry.getValue()))
-			.collect(Collectors.joining("&"));
-	}
+		var expiresInSeconds = 3600L;
+		if (responseBody.get("expires_in") instanceof Number expiresIn) {
+			expiresInSeconds = expiresIn.longValue();
+		}
 
-	private String encode(String value) {
-		return URLEncoder.encode(value, StandardCharsets.UTF_8);
+		return new RefreshedToken(
+			accessToken,
+			Instant.now(clock).plusSeconds(expiresInSeconds)
+		);
 	}
 
 	private WebApplicationException webException(Response.Status status, String message) {

@@ -1,4 +1,4 @@
-package com.sharky.dg.calendar.google;
+package com.sharky.dg.calendar.google.web;
 
 import java.net.URI;
 import java.security.SecureRandom;
@@ -6,13 +6,14 @@ import java.util.Base64;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import com.sharky.dg.calendar.appointment.AppointmentCalendarEventFactory;
+import com.sharky.dg.calendar.google.auth.GoogleOAuthConfiguration;
+import com.sharky.dg.calendar.google.auth.GoogleOAuthService;
+import com.sharky.dg.calendar.google.connection.GoogleConnectionService;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.CookieParam;
 import jakarta.ws.rs.GET;
-import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.QueryParam;
@@ -31,25 +32,19 @@ public class GoogleController {
 	private static final String GOOGLE_OAUTH_STATE_COOKIE = "google_oauth_state";
 	private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
-	private final GoogleApiService googleApiService;
 	private final GoogleOAuthService googleOAuthService;
 	private final GoogleOAuthConfiguration googleOAuthConfiguration;
 	private final GoogleConnectionService googleConnectionService;
-	private final AppointmentCalendarEventFactory appointmentCalendarEventFactory;
 
 	@Inject
 	public GoogleController(
-		GoogleApiService googleApiService,
 		GoogleOAuthService googleOAuthService,
 		GoogleOAuthConfiguration googleOAuthConfiguration,
-		GoogleConnectionService googleConnectionService,
-		AppointmentCalendarEventFactory appointmentCalendarEventFactory
+		GoogleConnectionService googleConnectionService
 	) {
-		this.googleApiService = googleApiService;
 		this.googleOAuthService = googleOAuthService;
 		this.googleOAuthConfiguration = googleOAuthConfiguration;
 		this.googleConnectionService = googleConnectionService;
-		this.appointmentCalendarEventFactory = appointmentCalendarEventFactory;
 	}
 
 	@GET
@@ -119,34 +114,6 @@ public class GoogleController {
 			})
 			.toList());
 		return response;
-	}
-
-	@GET
-	@Path("google/test/gmail")
-	@Produces(MediaType.APPLICATION_JSON)
-	public Map<String, Object> gmailProfile(@QueryParam("email") String email) {
-		return googleApiService.fetchGmailProfile(email);
-	}
-
-	@GET
-	@Path("google/test/gmail/messages")
-	@Produces(MediaType.APPLICATION_JSON)
-	public Map<String, Object> gmailMessages(@QueryParam("email") String email) {
-		return googleApiService.fetchLatestGmailMessages(email);
-	}
-
-	@GET
-	@Path("google/test/calendar")
-	@Produces(MediaType.APPLICATION_JSON)
-	public Map<String, Object> calendarList(@QueryParam("email") String email) {
-		return googleApiService.fetchCalendarList(email);
-	}
-
-	@POST
-	@Path("google/test/calendar/events")
-	@Produces(MediaType.APPLICATION_JSON)
-	public Map<String, Object> createCalendarEvent(@QueryParam("email") String email) {
-		return googleApiService.createCalendarEvent(email, appointmentCalendarEventFactory.sampleEvent());
 	}
 
 	private URI googleCallbackUri(UriInfo uriInfo) {

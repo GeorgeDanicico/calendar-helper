@@ -1,4 +1,4 @@
-package com.sharky.dg.calendar.google;
+package com.sharky.dg.calendar.google.auth;
 
 import java.util.Arrays;
 import java.util.List;

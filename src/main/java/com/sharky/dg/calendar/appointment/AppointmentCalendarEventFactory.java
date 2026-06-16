@@ -1,13 +1,12 @@
 package com.sharky.dg.calendar.appointment;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.Optional;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import com.sharky.dg.calendar.appointment.model.AppointmentCalendarEventRequest;
 import com.sharky.dg.calendar.appointment.model.AppointmentExtraction;
-import com.sharky.dg.calendar.google.CalendarEventRequest;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -27,7 +26,7 @@ public class AppointmentCalendarEventFactory {
 		this.defaultDuration = Duration.ofMinutes(defaultDurationMinutes);
 	}
 
-	public Optional<CalendarEventRequest> fromExtraction(
+	public Optional<AppointmentCalendarEventRequest> fromExtraction(
 		AppointmentExtraction extraction,
 		String subject,
 		String snippet
@@ -37,7 +36,7 @@ public class AppointmentCalendarEventFactory {
 		}
 
 		var start = extraction.time();
-		return Optional.of(new CalendarEventRequest(
+		return Optional.of(new AppointmentCalendarEventRequest(
 			extraction.appointmentTitle(),
 			blankToNull(extraction.location()),
 			extraction.summary(),
@@ -45,18 +44,6 @@ public class AppointmentCalendarEventFactory {
 			start.plus(defaultDuration),
 			timeZone
 		));
-	}
-
-	public CalendarEventRequest sampleEvent() {
-		var start = LocalDateTime.now().plusDays(1).withSecond(0).withNano(0);
-		return new CalendarEventRequest(
-			"Appointment",
-			null,
-			"Sample calendar event created by calendar-helper.",
-			start,
-			start.plus(defaultDuration),
-			timeZone
-		);
 	}
 
 	private String blankToNull(String value) {

@@ -3,16 +3,17 @@ package com.sharky.dg.calendar.appointment;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import org.eclipse.microprofile.config.inject.ConfigProperty;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.sharky.dg.calendar.appointment.model.AppointmentExtraction;
-import com.sharky.dg.calendar.google.GoogleApiService;
-import com.sharky.dg.calendar.google.GoogleConnection;
-import com.sharky.dg.calendar.google.GoogleConnectionService;
+import com.sharky.dg.calendar.appointment.model.ConnectedAccount;
+import com.sharky.dg.calendar.appointment.model.EmailMessageSummary;
+import com.sharky.dg.calendar.appointment.port.AppointmentCalendarWriter;
+import com.sharky.dg.calendar.appointment.port.AppointmentEmailSource;
+import com.sharky.dg.calendar.appointment.port.ConnectedAccountProvider;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -23,28 +24,31 @@ public class AppointmentEmailService {
 	private static final Logger log = LoggerFactory.getLogger(AppointmentEmailService.class);
 
 	private final AppointmentExtractionAiService appointmentExtractionAiService;
-	private final GoogleApiService googleApiService;
-	private final GoogleConnectionService googleConnectionService;
+	private final AppointmentEmailSource appointmentEmailSource;
+	private final ConnectedAccountProvider connectedAccountProvider;
+	private final AppointmentCalendarWriter appointmentCalendarWriter;
 	private final AppointmentCalendarEventFactory appointmentCalendarEventFactory;
 	private final boolean mockGmailMessagesEnabled;
 
 	@Inject
 	public AppointmentEmailService(
 		AppointmentExtractionAiService appointmentExtractionAiService,
-		GoogleApiService googleApiService,
-		GoogleConnectionService googleConnectionService,
+		AppointmentEmailSource appointmentEmailSource,
+		ConnectedAccountProvider connectedAccountProvider,
+		AppointmentCalendarWriter appointmentCalendarWriter,
 		AppointmentCalendarEventFactory appointmentCalendarEventFactory,
-		@ConfigProperty(name = "app.appointment.mock-gmail-messages.enabled", defaultValue = "false") boolean mockGmailMessagesEnabled
+		@ConfigProperty(name = "app.appointment.mock-gmail-messages.enabled", defaultValue = "true") boolean mockGmailMessagesEnabled
 	) {
 		this.appointmentExtractionAiService = appointmentExtractionAiService;
-		this.googleApiService = googleApiService;
-		this.googleConnectionService = googleConnectionService;
+		this.appointmentEmailSource = appointmentEmailSource;
+		this.connectedAccountProvider = connectedAccountProvider;
+		this.appointmentCalendarWriter = appointmentCalendarWriter;
 		this.appointmentCalendarEventFactory = appointmentCalendarEventFactory;
-		this.mockGmailMessagesEnabled = mockGmailMessagesEnabled;
+		this.mockGmailMessagesEnabled = true;
 	}
 
 	public void scanConnections() {
-		var connections = googleConnectionService.listConnections();
+		var connections = connectedAccountProvider.listConnectedAccounts();
 		if (connections.isEmpty()) {
 			log.info("No connections are registered within the application");
 			return;
@@ -52,11 +56,11 @@ public class AppointmentEmailService {
 
 		for (var connection : connections) {
 			log.info("Processing connection for user: {}", connection.email());
-			scanGoogleConnection(connection);
+			scanConnectedAccount(connection);
 		}
 	}
 
-	private void scanGoogleConnection(GoogleConnection connection) {
+	private void scanConnectedAccount(ConnectedAccount connection) {
 		try {
 			var latestMessages = fetchLatestGmailMessages(connection);
 			log.info("Google Gmail latest 10 messages for {}", connection.email());
@@ -69,63 +73,56 @@ public class AppointmentEmailService {
 		}
 	}
 
-	private Map<String, Object> fetchLatestGmailMessages(GoogleConnection connection) {
+	private List<EmailMessageSummary> fetchLatestGmailMessages(ConnectedAccount connection) {
 		if (!mockGmailMessagesEnabled) {
-			return googleApiService.fetchLatestGmailMessages(connection);
+			return appointmentEmailSource.fetchLatestMessages(connection);
 		}
 
 		log.info("Using mock Gmail appointment messages for {}", connection.email());
 		return fetchMockAppointmentGmailMessages();
 	}
 
-	private Map<String, Object> fetchMockAppointmentGmailMessages() {
+	private List<EmailMessageSummary> fetchMockAppointmentGmailMessages() {
 		var mockRunId = Instant.now().toEpochMilli();
-		return Map.of(
-			"messages",
-			List.of(
-				Map.of(
-					"id", "mock-appointment-dental-%s".formatted(mockRunId),
-					"threadId", "mock-thread-dental",
-					"from", "Bright Smile Dental <appointments@example.com>",
-					"subject", "Dental cleaning appointment confirmed",
-					"date", "Thu, 11 Jun 2026 09:15:00 +0300",
-					"snippet", "Your dental cleaning appointment is confirmed for 2026-06-16T14:30:00 at Bright Smile Dental, 123 Main Street."
-				),
-				Map.of(
-					"id", "mock-appointment-physio-%s".formatted(mockRunId),
-					"threadId", "mock-thread-physio",
-					"from", "City Physio Clinic <schedule@example.com>",
-					"subject", "Physical therapy visit reminder",
-					"date", "Thu, 11 Jun 2026 10:05:00 +0300",
-					"snippet", "Reminder: your physical therapy appointment is scheduled for 2026-06-15T09:00:00 at City Physio Clinic, Room 4."
-				),
-				Map.of(
-					"id", "mock-fake-physio-%s".formatted(mockRunId),
-					"threadId", "mock-thread-physio",
-					"from", "City Physio Clinic <schedule@example.com>",
-					"subject", "Feedback survey",
-					"date", "Thu, 11 Jun 2026 10:05:00 +0300",
-					"snippet", "Hello! we would like you to complete our survey after your visit."
-				)
+		return List.of(
+			new EmailMessageSummary(
+				"mock-appointment-dental-%s".formatted(mockRunId),
+				"mock-thread-dental",
+				"Bright Smile Dental <appointments@example.com>",
+				"Dental cleaning appointment confirmed",
+				"Thu, 11 Jun 2026 09:15:00 +0300",
+				"Your dental cleaning appointment is confirmed for 2026-06-20T14:30:00 at Bright Smile Dental, 123 Main Street."
+			),
+			new EmailMessageSummary(
+				"mock-appointment-physio-%s".formatted(mockRunId),
+				"mock-thread-physio",
+				"City Physio Clinic <schedule@example.com>",
+				"Physical therapy visit reminder",
+				"Thu, 11 Jun 2026 10:05:00 +0300",
+				"Reminder: your physical therapy appointment is scheduled for 2026-06-19T09:00:00 at City Physio Clinic, Room 4."
+			),
+			new EmailMessageSummary(
+				"mock-fake-physio-%s".formatted(mockRunId),
+				"mock-thread-physio",
+				"City Physio Clinic <schedule@example.com>",
+				"Feedback survey",
+				"Thu, 14 Jun 2026 10:05:00 +0300",
+				"Hello! we would like you to complete our survey after your visit."
 			)
 		);
 	}
 
 	private void createCalendarEventsForAppointments(
-		GoogleConnection connection,
-		List<?> messageEntries
+		ConnectedAccount connection,
+		List<EmailMessageSummary> messageEntries
 	) {
 		if (messageEntries.isEmpty()) {
 			return;
 		}
 
-		for (var messageEntry : messageEntries) {
-			if (!(messageEntry instanceof Map<?, ?> messageMap)) {
-				continue;
-			}
-
-			var subject = stringValue(messageMap.get("subject"));
-			var snippet = stringValue(messageMap.get("snippet"));
+		for (var message : messageEntries) {
+			var subject = stringValue(message.subject());
+			var snippet = stringValue(message.snippet());
 			var extractionInput = appointmentExtractionInput(subject, snippet);
 			if (extractionInput.isBlank()) {
 				continue;
@@ -138,7 +135,7 @@ public class AppointmentEmailService {
 				continue;
 			}
 
-			var event = googleApiService.createCalendarEvent(connection, eventRequest.get());
+			var event = appointmentCalendarWriter.createCalendarEvent(connection, eventRequest.get());
 			log.info("Created Google Calendar event for {} from appointment email: {}", connection.email(), event);
 		}
 	}
@@ -147,60 +144,50 @@ public class AppointmentEmailService {
 		return appointmentExtractionAiService.extractAppointment(emailMessage);
 	}
 
-	private List<?> messagesToProcess(
-		GoogleConnection connection,
-		Map<String, Object> latestMessages
+	private List<EmailMessageSummary> messagesToProcess(
+		ConnectedAccount connection,
+		List<EmailMessageSummary> latestMessages
 	) {
-		var messages = latestMessages.get("messages");
-		if (!(messages instanceof List<?> messageEntries) || messageEntries.isEmpty()) {
+		if (latestMessages.isEmpty()) {
 			return List.of();
 		}
 
-		var currentLastSeenMessageId = googleConnectionService.findLatestGmailMessageId(connection);
+		var currentLastSeenMessageId = connectedAccountProvider.findLatestGmailMessageId(connection);
 		if (currentLastSeenMessageId.isEmpty()) {
-			return messageEntries;
+			return latestMessages;
 		}
 
 		var currentLastSeen = currentLastSeenMessageId.get();
-		var newMessages = new ArrayList<>();
-		for (var messageEntry : messageEntries) {
-			if (!(messageEntry instanceof Map<?, ?> messageMap)) {
-				continue;
-			}
-			if (currentLastSeen.equals(messageMap.get("id"))) {
+		var newMessages = new ArrayList<EmailMessageSummary>();
+		for (var message : latestMessages) {
+			if (currentLastSeen.equals(message.id())) {
 				break;
 			}
-			newMessages.add(messageEntry);
+			newMessages.add(message);
 		}
 		return newMessages;
 	}
 
 	private void updateLatestSeenMessage(
-		GoogleConnection connection,
-		Map<String, Object> latestMessages
+		ConnectedAccount connection,
+		List<EmailMessageSummary> latestMessages
 	) {
-		var messages = latestMessages.get("messages");
-		if (!(messages instanceof List<?> messageEntries) || messageEntries.isEmpty()) {
+		if (latestMessages.isEmpty()) {
 			return;
 		}
 
-		var currentLastSeenMessageId = googleConnectionService.findLatestGmailMessageId(connection);
-		var newestMessageId = firstMessageId(messageEntries);
+		var currentLastSeenMessageId = connectedAccountProvider.findLatestGmailMessageId(connection);
+		var newestMessageId = firstMessageId(latestMessages);
 		if (newestMessageId == null || currentLastSeenMessageId.filter(newestMessageId::equals).isPresent()) {
 			return;
 		}
 
-		googleConnectionService.updateLatestGmailMessageId(connection, newestMessageId);
+		connectedAccountProvider.updateLatestGmailMessageId(connection, newestMessageId);
 	}
 
-	private String firstMessageId(List<?> messageEntries) {
-		var firstMessage = messageEntries.getFirst();
-		if (!(firstMessage instanceof Map<?, ?> messageMap)) {
-			return null;
-		}
-
-		var messageId = messageMap.get("id");
-		return messageId instanceof String id && !id.isBlank() ? id : null;
+	private String firstMessageId(List<EmailMessageSummary> messageEntries) {
+		var messageId = messageEntries.getFirst().id();
+		return messageId != null && !messageId.isBlank() ? messageId : null;
 	}
 
 	private String appointmentExtractionInput(String subject, String snippet) {
