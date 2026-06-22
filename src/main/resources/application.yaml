@@ -1,6 +1,11 @@
 quarkus:
   application:
     name: calendar-helper
+  http:
+    record-request-start-time: true
+    access-log:
+      enabled: true
+      log-to-file: false
   datasource:
     db-kind: h2
     username: sa
@@ -16,6 +21,27 @@ quarkus:
       chat-model:
         model-name: gpt-4.1-mini
         temperature: 0
+  log:
+    handler:
+      file:
+        access-log:
+          enabled: true
+          path: 'target/calendar-helper-access.log'
+          format: '%m%n'
+          rotation:
+            file-suffix: '.yyyy-MM-dd-HH'
+    level: INFO
+    category:
+      "io.quarkus.http.access-log":
+        handlers:
+          - access-log
+        use-parent-handlers: false
+    file:
+      enabled: true
+      path: 'target/calendar-helper-server.log'
+      rotation:
+        enabled: true
+        file-suffix: '.yyyy-MM-dd-HH'
 
 app:
   appointment:
