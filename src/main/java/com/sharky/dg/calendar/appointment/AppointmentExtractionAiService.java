@@ -6,6 +6,7 @@ import com.sharky.dg.calendar.appointment.model.AppointmentExtraction;
 import dev.langchain4j.service.SystemMessage;
 import dev.langchain4j.service.UserMessage;
 import dev.langchain4j.service.guardrail.InputGuardrails;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkiverse.langchain4j.RegisterAiService;
 import jakarta.enterprise.context.ApplicationScoped;
 
@@ -69,5 +70,6 @@ public interface AppointmentExtractionAiService {
 		{emailMessage}
 		""")
 	@InputGuardrails(AppointmentEmailCandidateGuardrail.class)
+	@WithSpan("appointment.ai.extract-appointment")
 	AppointmentExtraction extractAppointment(String emailMessage);
 }

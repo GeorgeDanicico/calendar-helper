@@ -13,6 +13,8 @@ import com.sharky.dg.calendar.google.connection.GoogleConnection;
 import com.sharky.dg.calendar.google.connection.GoogleConnectionService;
 import com.sharky.dg.calendar.google.http.GoogleHttpClient;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -40,14 +42,17 @@ public class GoogleGmailMessageSource implements AppointmentEmailSource {
 	}
 
 	@Override
+	@WithSpan("google.gmail.fetch-latest-messages")
 	public List<EmailMessageSummary> fetchLatestMessages(ConnectedAccount account) {
 		var connection = googleConnectionService.requireConnection(account);
 		var response = fetchGoogleResource(connection, GMAIL_MESSAGES_URL);
 		var messages = response.get("messages");
 		if (!(messages instanceof List<?> messageEntries) || messageEntries.isEmpty()) {
+			Span.current().setAttribute("app.google.gmail.messages.count", 0);
 			return List.of();
 		}
 
+		Span.current().setAttribute("app.google.gmail.messages.count", messageEntries.size());
 		var resolvedMessages = new ArrayList<EmailMessageSummary>();
 		for (var messageEntry : messageEntries) {
 			if (!(messageEntry instanceof Map<?, ?> messageMap)) {
@@ -63,6 +68,7 @@ public class GoogleGmailMessageSource implements AppointmentEmailSource {
 			resolvedMessages.add(summarizeMessage(message));
 		}
 
+		Span.current().setAttribute("app.google.gmail.resolved_messages.count", resolvedMessages.size());
 		return resolvedMessages;
 	}
 

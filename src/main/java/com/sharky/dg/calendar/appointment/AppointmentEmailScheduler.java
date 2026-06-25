@@ -3,6 +3,7 @@ package com.sharky.dg.calendar.appointment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -18,6 +19,7 @@ public class AppointmentEmailScheduler {
 	}
 
 	@Scheduled(cron = "{app.appointment.email-scan-cron}")
+	@WithSpan("appointment.email.scheduled-scan")
 	void scanEmailMessageForAppointment() {
 		log.info("Starting email scheduled extraction job");
 		appointmentEmailService.scanConnections();

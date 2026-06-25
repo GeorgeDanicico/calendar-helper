@@ -15,6 +15,8 @@ import com.sharky.dg.calendar.appointment.model.ConnectedAccount;
 import com.sharky.dg.calendar.appointment.port.AppointmentCalendarWriter;
 import com.sharky.dg.calendar.google.connection.GoogleConnectionService;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
@@ -39,11 +41,13 @@ public class GoogleCalendarWriter implements AppointmentCalendarWriter {
 	}
 
 	@Override
+	@WithSpan("google.calendar.create-event")
 	public AppointmentCalendarEventResult createCalendarEvent(
 		ConnectedAccount account,
 		AppointmentCalendarEventRequest eventRequest
 	) {
 		try {
+			Span.current().setAttribute("app.google.calendar.id", calendarId);
 			var connection = googleConnectionService.requireConnection(account);
 			var calendarClient = googleCalendarClientFactory.createClient(connection);
 			var event = calendarClient.events()

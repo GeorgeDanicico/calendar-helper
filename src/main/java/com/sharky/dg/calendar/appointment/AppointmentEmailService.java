@@ -15,6 +15,8 @@ import com.sharky.dg.calendar.appointment.port.AppointmentCalendarWriter;
 import com.sharky.dg.calendar.appointment.port.AppointmentEmailSource;
 import com.sharky.dg.calendar.appointment.port.ConnectedAccountProvider;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -47,8 +49,10 @@ public class AppointmentEmailService {
 		this.mockGmailMessagesEnabled = true;
 	}
 
+	@WithSpan("appointment.email.scan-connections")
 	public void scanConnections() {
 		var connections = connectedAccountProvider.listConnectedAccounts();
+		Span.current().setAttribute("app.appointment.connections.count", connections.size());
 		if (connections.isEmpty()) {
 			log.info("No connections are registered within the application");
 			return;
@@ -61,10 +65,14 @@ public class AppointmentEmailService {
 	}
 
 	private void scanConnectedAccount(ConnectedAccount connection) {
+		var span = Span.current();
+		setSpanAttributeIfPresent(span, "app.appointment.connection.id", connection.id());
 		try {
 			var latestMessages = fetchLatestGmailMessages(connection);
+			span.setAttribute("app.appointment.gmail.latest_messages.count", latestMessages.size());
 			log.info("Google Gmail latest {} messages for {}", Integer.valueOf(latestMessages.size()), connection.email());
 			var messagesToProcess = messagesToProcess(connection, latestMessages);
+			span.setAttribute("app.appointment.gmail.messages_to_process.count", messagesToProcess.size());
 			createCalendarEventsForAppointments(connection, messagesToProcess);
 			updateLatestSeenMessage(connection, latestMessages);
 		}
@@ -120,6 +128,7 @@ public class AppointmentEmailService {
 			return;
 		}
 
+		var createdEvents = 0;
 		for (var message : messageEntries) {
 			var subject = stringValue(message.subject());
 			var snippet = stringValue(message.snippet());
@@ -136,8 +145,11 @@ public class AppointmentEmailService {
 			}
 
 			var event = appointmentCalendarWriter.createCalendarEvent(connection, eventRequest.get());
+			createdEvents++;
+			Span.current().addEvent("appointment.calendar.event.created");
 			log.info("Created Google Calendar event for {} from appointment email: {}", connection.email(), event);
 		}
+		Span.current().setAttribute("app.appointment.calendar.events_created.count", createdEvents);
 	}
 
 	AppointmentExtraction extractAppointment(String emailMessage) {
@@ -211,5 +223,11 @@ public class AppointmentEmailService {
 
 	private String stringValue(Object value) {
 		return value instanceof String string && !string.isBlank() ? string : null;
+	}
+
+	private void setSpanAttributeIfPresent(Span span, String key, Object value) {
+		if (value != null) {
+			span.setAttribute(key, value.toString());
+		}
 	}
 }

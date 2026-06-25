@@ -1,16 +1,24 @@
 quarkus:
   application:
     name: calendar-helper
+  otel:
+    service:
+      name: calendar-helper
+    exporter:
+      otlp:
+        endpoint: http://localhost:4317
   http:
     record-request-start-time: true
     access-log:
       enabled: true
       log-to-file: false
+      pattern: '%{time,yyyy-MM-dd HH:mm:ss,SSS} host=%h tid=%{X,traceId} %r %s size=%b time=%D'
   datasource:
     db-kind: h2
     username: sa
     password:
     jdbc:
+      telemetry: true
       url: jdbc:h2:mem:calendar_helper;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
   flyway:
     migrate-at-start: true
@@ -39,6 +47,7 @@ quarkus:
     file:
       enabled: true
       path: 'target/calendar-helper-server.log'
+      format: '%d{yyyy-MM-dd HH:mm:ss,SSS} tid=%X{traceId} host=%h %N[%i] %-5p [%c{3.}] (%t) %s%e%n'
       rotation:
         enabled: true
         file-suffix: '.yyyy-MM-dd-HH'

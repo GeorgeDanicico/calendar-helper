@@ -8,6 +8,8 @@ import org.eclipse.microprofile.config.inject.ConfigProperty;
 import com.sharky.dg.calendar.appointment.model.AppointmentCalendarEventRequest;
 import com.sharky.dg.calendar.appointment.model.AppointmentExtraction;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 
@@ -26,16 +28,19 @@ public class AppointmentCalendarEventFactory {
 		this.defaultDuration = Duration.ofMinutes(defaultDurationMinutes);
 	}
 
+	@WithSpan("appointment.calendar.build-event-request")
 	public Optional<AppointmentCalendarEventRequest> fromExtraction(
 		AppointmentExtraction extraction,
 		String subject,
 		String snippet
 	) {
 		if (extraction == null || !extraction.appointment() || extraction.time() == null) {
+			Span.current().setAttribute("app.appointment.calendar.event_request.created", false);
 			return Optional.empty();
 		}
 
 		var start = extraction.time();
+		Span.current().setAttribute("app.appointment.calendar.event_request.created", true);
 		return Optional.of(new AppointmentCalendarEventRequest(
 			extraction.appointmentTitle(),
 			blankToNull(extraction.location()),
