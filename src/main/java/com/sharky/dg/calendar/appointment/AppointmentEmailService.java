@@ -63,7 +63,7 @@ public class AppointmentEmailService {
 	private void scanConnectedAccount(ConnectedAccount connection) {
 		try {
 			var latestMessages = fetchLatestGmailMessages(connection);
-			log.info("Google Gmail latest 10 messages for {}", connection.email());
+			log.info("Google Gmail latest {} messages for {}", Integer.valueOf(latestMessages.size()), connection.email());
 			var messagesToProcess = messagesToProcess(connection, latestMessages);
 			createCalendarEventsForAppointments(connection, messagesToProcess);
 			updateLatestSeenMessage(connection, latestMessages);
@@ -182,6 +182,7 @@ public class AppointmentEmailService {
 			return;
 		}
 
+		log.info("Updating the latest seen message for account {}", connection.id());
 		connectedAccountProvider.updateLatestGmailMessageId(connection, newestMessageId);
 	}
 
