@@ -1,11 +1,11 @@
 create table app_user (
-	id uuid default random_uuid() primary key,
+	id uuid default gen_random_uuid() primary key,
 	email varchar(320) not null unique,
 	created_at timestamp not null default current_timestamp
 );
 
 create table oauth_connections (
-	id uuid default random_uuid() primary key,
+	id uuid default gen_random_uuid() primary key,
 	user_id uuid not null,
 	provider_subject varchar(255) not null,
 	access_token text,
@@ -24,7 +24,7 @@ create table oauth_connections (
 );
 
 create table gmail_latest_messages (
-	id uuid default random_uuid() primary key,
+	id uuid default gen_random_uuid() primary key,
 	user_id uuid not null,
 	last_seen_message_id varchar(255) not null,
 	processed_at timestamp not null default current_timestamp,

@@ -30,7 +30,6 @@ import jakarta.ws.rs.core.UriInfo;
 public class GoogleController {
 
 	private static final String GOOGLE_OAUTH_STATE_COOKIE = "google_oauth_state";
-	private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
 	private final GoogleOAuthService googleOAuthService;
 	private final GoogleOAuthConfiguration googleOAuthConfiguration;
@@ -124,7 +123,7 @@ public class GoogleController {
 
 	private String newState() {
 		var bytes = new byte[32];
-		SECURE_RANDOM.nextBytes(bytes);
+		new SecureRandom().nextBytes(bytes);
 		return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
 	}
 

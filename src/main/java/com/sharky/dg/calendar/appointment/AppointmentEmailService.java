@@ -46,7 +46,7 @@ public class AppointmentEmailService {
 		this.connectedAccountProvider = connectedAccountProvider;
 		this.appointmentCalendarWriter = appointmentCalendarWriter;
 		this.appointmentCalendarEventFactory = appointmentCalendarEventFactory;
-		this.mockGmailMessagesEnabled = true;
+		this.mockGmailMessagesEnabled = mockGmailMessagesEnabled;
 	}
 
 	@WithSpan("appointment.email.scan-connections")

@@ -14,12 +14,12 @@ quarkus:
       log-to-file: false
       pattern: '%{time,yyyy-MM-dd HH:mm:ss,SSS} host=%h tid=%{X,traceId} %r %s size=%b time=%D'
   datasource:
-    db-kind: h2
-    username: sa
-    password:
+    db-kind: postgresql
+    username: ${POSTGRES_USER:myuser}
+    password: ${POSTGRES_PASSWORD:secret}
     jdbc:
       telemetry: true
-      url: jdbc:h2:mem:calendar_helper;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+      url: ${POSTGRES_JDBC_URL:jdbc:postgresql://localhost:5432/mydatabase}
   flyway:
     migrate-at-start: true
     locations: db/migration
@@ -27,7 +27,7 @@ quarkus:
     openai:
       api-key: ${OPENAI_API_KEY:}
       chat-model:
-        model-name: gpt-4.1-mini
+        model-name: gpt-5.4-nano
         temperature: 0
   log:
     handler:

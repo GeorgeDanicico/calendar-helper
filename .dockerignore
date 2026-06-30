@@ -1,0 +1,8 @@
+*
+
+!target/
+!target/*-runner
+!src/
+!src/main/
+!src/main/docker/
+!src/main/docker/Dockerfile.native

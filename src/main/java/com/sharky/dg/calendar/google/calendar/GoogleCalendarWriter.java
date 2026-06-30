@@ -37,7 +37,7 @@ public class GoogleCalendarWriter implements AppointmentCalendarWriter {
 	) {
 		this.googleConnectionService = googleConnectionService;
 		this.googleCalendarClientFactory = googleCalendarClientFactory;
-		this.calendarId = calendarId;
+		this.calendarId = calendarId == null || calendarId.isBlank() ? "primary" : calendarId;
 	}
 
 	@Override

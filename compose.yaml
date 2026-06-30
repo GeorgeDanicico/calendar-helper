@@ -1,4 +1,27 @@
 services:
+  calendar-helper:
+    image: 'calendar-helper:native'
+    build:
+      context: .
+      dockerfile: src/main/docker/Dockerfile.native
+    depends_on:
+      postgres:
+        condition: service_healthy
+      jaeger:
+        condition: service_started
+    environment:
+      - 'POSTGRES_JDBC_URL=jdbc:postgresql://postgres:5432/mydatabase'
+      - 'POSTGRES_USER=myuser'
+      - 'POSTGRES_PASSWORD=secret'
+      - 'QUARKUS_OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4317'
+      - 'APP_CALENDAR_ID=primary'
+      - 'APP_APPOINTMENT_MOCK_GMAIL_MESSAGES_ENABLED=false'
+      - 'OPENAI_API_KEY=${OPENAI_API_KEY:-}'
+      - 'GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}'
+      - 'GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}'
+    ports:
+      - '8080:8080'
+
   jaeger:
     image: 'jaegertracing/jaeger:latest'
     ports:
@@ -14,3 +37,8 @@ services:
       - 'POSTGRES_USER=myuser'
     ports:
       - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U myuser -d mydatabase']
+      interval: 5s
+      timeout: 5s
+      retries: 10

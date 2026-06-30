@@ -8,6 +8,8 @@ import java.util.UUID;
 import com.sharky.dg.calendar.appointment.model.ConnectedAccount;
 import com.sharky.dg.calendar.appointment.port.ConnectedAccountProvider;
 
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.instrumentation.annotations.WithSpan;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.WebApplicationException;
@@ -70,19 +72,26 @@ public class GoogleConnectionService implements ConnectedAccountProvider {
 	}
 
 	@Override
+	@WithSpan("google.connection.list-connected-accounts")
 	public List<ConnectedAccount> listConnectedAccounts() {
-		return listConnections().stream()
+		var accounts = listConnections().stream()
 			.map((connection) -> new ConnectedAccount(connection.id(), connection.email()))
 			.toList();
+		Span.current().setAttribute("app.google.connected_accounts.count", accounts.size());
+		return accounts;
 	}
 
 	@Override
+	@WithSpan("google.connection.find-latest-gmail-message-id")
 	public Optional<String> findLatestGmailMessageId(ConnectedAccount account) {
 		var connection = requireConnection(account);
-		return googleConnectionRepository.findLatestGmailMessageId(connection.userId());
+		var messageId = googleConnectionRepository.findLatestGmailMessageId(connection.userId());
+		Span.current().setAttribute("app.google.gmail.latest_message_id.exists", messageId.isPresent());
+		return messageId;
 	}
 
 	@Override
+	@WithSpan("google.connection.update-latest-gmail-message-id")
 	public void updateLatestGmailMessageId(ConnectedAccount account, String messageId) {
 		var connection = requireConnection(account);
 		googleConnectionRepository.updateLatestGmailMessageId(connection.userId(), messageId);
